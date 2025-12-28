@@ -33,6 +33,8 @@ jobs:
         workload_identity_provider: 'projects/1077929303944/locations/global/workloadIdentityPools/github-pool/providers/github-provider'
         # Your service account email
         service_account: 'diabeticai-deployer@diabeticai-advisor.iam.gserviceaccount.com'
+        # ✅ CRITICAL FIX: Add audience parameter
+        audience: 'https://iam.googleapis.com/projects/1077929303944/locations/global/workloadIdentityPools/github-pool/providers/github-provider'
         # Token format (recommended for Cloud Run)
         token_format: 'access_token'
 
