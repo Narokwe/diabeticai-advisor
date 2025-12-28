@@ -12,21 +12,38 @@ env:
 jobs:
   deploy:
     runs-on: ubuntu-latest
+    
+    # THESE PERMISSIONS ARE CRITICAL FOR WORKLOAD IDENTITY
+    permissions:
+      contents: 'read'
+      id-token: 'write'  # This allows GitHub to generate OIDC tokens
 
     steps:
     - name: Checkout
       uses: actions/checkout@v4
 
-    - name: Authenticate to GCP
+    # ============================================
+    # WORKLOAD IDENTITY FEDERATION AUTH (NO KEYS!)
+    # ============================================
+    - name: Authenticate to GCP via Workload Identity
+      id: auth
       uses: google-github-actions/auth@v2
       with:
-        credentials_json: ${{ secrets.GCP_SA_KEY }}
+        # Your workload identity provider string
+        workload_identity_provider: 'projects/1077929303944/locations/global/workloadIdentityPools/github-pool/providers/github-provider'
+        # Your service account email
+        service_account: 'diabeticai-deployer@diabeticai-advisor.iam.gserviceaccount.com'
+        # Token format (recommended for Cloud Run)
+        token_format: 'access_token'
 
     - name: Set up gcloud
       uses: google-github-actions/setup-gcloud@v2
       with:
         project_id: ${{ secrets.GCP_PROJECT_ID }}
 
+    # ============================================
+    # BUILD AND DEPLOY
+    # ============================================
     - name: Build and Deploy to Cloud Run
       run: |
         gcloud run deploy $SERVICE_NAME \
