@@ -96,7 +96,7 @@ func main() {
 	ctx := context.Background()
 
 	// Load the Google's AI API Key environment variable
-	apiKey := os.Getenve("GEMINI_API_KEY")
+	apiKey := os.Getenv("GEMINI_API_KEY")
 	if apiKey == "" {
 		log.Fatal("GEMINI API KEY environment variable is missing!")
 	}
