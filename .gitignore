@@ -17,4 +17,5 @@ vendor/
 .idea/
 
 # OS
-.DS_Store
+.DS_Storedeploy-key.json
+*.json
