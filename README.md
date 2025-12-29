@@ -68,7 +68,7 @@ Diabetes is a growing public health challenge, and responsible AI can help impro
 ## ☁️ Live Demo
 
 🔗 **Cloud Run URL:**  
-https://YOUR_CLOUD_RUN_URL
+https://diabeticai-advisor-4b7g5fbehq-uc.a.run.app
 
 
 
