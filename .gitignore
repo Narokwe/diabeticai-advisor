@@ -1,21 +1,49 @@
-*.log
-
-# Environment variables
-.env
-
-# Go build artifacts
-bin/
+# Binaries and executables
+diabeticai-advisor
+app
+main
 *.exe
 *.out
 
+# Dependencies
+vendor/
+
+# Environment variables
+.env
+.env.local
+.env.*
+!/.env.example
+
+# Go workspace files
+go.work
+go.work.sum
+
 # Go modules cache
 /pkg/
-vendor/
+
+# Logs
+*.log
+logs/
 
 # IDE
 .vscode/
 .idea/
+*.swp
+*.swo
 
 # OS
-.DS_Storedeploy-key.json
-*.json
+.DS_Store
+Thumbs.db
+
+# Deployment/config files that may contain secrets
+deploy-key.json
+*.json  # Be careful with this - you might need some JSON config files
+
+# Docker
+.dockerignore
+
+# Temporary files
+*.tmp
+*.temp
+tmp/
+temp/

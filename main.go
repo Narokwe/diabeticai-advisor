@@ -89,6 +89,88 @@ type MedicationOutput struct {
 	Disclaimer  string `json:"disclaimer" jsonschema:"description=Medical disclaimer"`
 }
 
+// Helper function to split text into sections
+func splitIntoSections(text string, numSections int) []string {
+	sections := make([]string, numSections)
+	if text == "" || numSections <= 0 {
+		return sections
+	}
+
+	parts := strings.Split(text, "\n\n")
+
+	for i := 0; i < numSections && i < len(parts); i++ {
+		sections[i] = strings.TrimSpace(parts[i])
+	}
+
+	return sections
+}
+
+// Helper function to parse meal sections
+func parseMealSections(text string) map[string]string {
+	return map[string]string{
+		"breakfast": extractSection(text, "BREAKFAST"),
+		"lunch":     extractSection(text, "LUNCH"),
+		"dinner":    extractSection(text, "DINNER"),
+		"snacks":    extractSection(text, "SNACKS"),
+	}
+}
+
+// Helper function to extract section from text
+func extractSection(text, keyword string) string {
+	if text == "" {
+		return "No information available."
+	}
+
+	textUpper := strings.ToUpper(text)
+	keywordUpper := strings.ToUpper(keyword)
+
+	start := strings.Index(textUpper, keywordUpper)
+	if start == -1 {
+		return "No information available."
+	}
+
+	// Move past the keyword
+	content := text[start+len(keywordUpper):]
+
+	// Stop at the next section header
+	for _, next := range []string{"BREAKFAST", "LUNCH", "DINNER", "SNACKS"} {
+		if next == keywordUpper {
+			continue
+		}
+		if idx := strings.Index(strings.ToUpper(content), next); idx != -1 {
+			content = content[:idx]
+			break
+		}
+	}
+
+	clean := strings.TrimSpace(strings.Trim(content, ":-"))
+	if clean == "" {
+		return "No information available."
+	}
+
+	return clean
+}
+
+// Helper function to check for keywords
+func containsKeywords(text string, keywords []string) bool {
+	if text == "" || len(keywords) == 0 {
+		return false
+	}
+
+	textLower := strings.ToLower(text)
+
+	for _, keyword := range keywords {
+		if keyword == "" {
+			continue
+		}
+		if strings.Contains(textLower, strings.ToLower(keyword)) {
+			return true
+		}
+	}
+
+	return false
+}
+
 // Declare main function
 func main() {
 
@@ -331,45 +413,6 @@ Always include a clear disclaimer that this is educational information only.`, i
 		}, nil
 	})
 
-	// Flows' local tests
-	fmt.Println("\n=== Testing Blood Sugar Interpreter ===")
-	bsResult, err := bloodSugarFlow.Run(ctx, &BloodSugarInput{
-		Reading:    145,
-		MealTiming: "after_meal",
-		MealType:   "lunch",
-	})
-	if err != nil {
-		log.Printf("Error: %v", err)
-	} else {
-		fmt.Printf("Status: %s\n", bsResult.Status)
-		fmt.Printf("Interpretation: %s\n", bsResult.Interpretation)
-	}
-
-	fmt.Println("\n=== Testing Meal Planner ===")
-	mealResult, err := mealPlanFlow.Run(ctx, &MealPlanInput{
-		DietType:     "vegetarian",
-		Allergies:    "none",
-		CalorieLimit: 1800,
-	})
-	if err != nil {
-		log.Printf("Error: %v", err)
-	} else {
-		fmt.Printf("Breakfast: %s\n", mealResult.Breakfast[:100]+"...")
-	}
-
-	fmt.Println("\n=== Testing Exercise Advisor ===")
-	exerciseResult, err := exerciseFlow.Run(ctx, &ExerciseInput{
-		FitnessLevel:  "beginner",
-		TimeAvailable: 30,
-		CurrentBG:     120,
-		PreferredType: "walking",
-	})
-	if err != nil {
-		log.Printf("Error: %v", err)
-	} else {
-		fmt.Printf("Safety Check: %s\n", exerciseResult.SafetyCheck)
-	}
-
 	// Set up HTTP server
 	mux := http.NewServeMux()
 	mux.HandleFunc("POST /bloodSugar", genkit.Handler(bloodSugarFlow))
@@ -378,102 +421,24 @@ Always include a clear disclaimer that this is educational information only.`, i
 	mux.HandleFunc("POST /exercise", genkit.Handler(exerciseFlow))
 	mux.HandleFunc("POST /medication", genkit.Handler(medicationFlow))
 
+	// Determine port (Cloud Run compatible)
+	port := os.Getenv("PORT")
+	if port == "" {
+		port = "8080"
+	}
+
+	addr := "0.0.0.0:" + port
+
 	// Print server info
-	fmt.Println("\n=== DiabetesAI Advisor Server Starting ===")
-	fmt.Println("Server: http://localhost:3400")
-	fmt.Println("\nAvailable Endpoints:")
-	fmt.Println("  POST /bloodSugar   - Interpret blood sugar readings")
-	fmt.Println("  POST /mealPlan     - Get diabetes-friendly meal plans")
-	fmt.Println("  POST /symptoms     - Check symptoms and get guidance")
-	fmt.Println("  POST /exercise     - Get safe exercise recommendations")
-	fmt.Println("  POST /medication   - Get medication information")
-	fmt.Println("\nSample curl command:")
-	fmt.Println(`  curl -X POST "http://localhost:3400/bloodSugar" \`)
-	fmt.Println(`    -H "Content-Type: application/json" \`)
-	fmt.Println(`    -d '{"data": {"reading": 145, "meal_timing": "after_meal", "meal_type": "lunch"}}'`)
+	log.Println("=== DiabetesAI Advisor Server Starting ===")
+	log.Printf("Server listening on %s\n", addr)
+	log.Println("Available Endpoints:")
+	log.Println("  POST /bloodSugar   - Interpret blood sugar readings")
+	log.Println("  POST /mealPlan     - Get diabetes-friendly meal plans")
+	log.Println("  POST /symptoms     - Check symptoms and get guidance")
+	log.Println("  POST /exercise     - Get safe exercise recommendations")
+	log.Println("  POST /medication   - Get medication information")
 
 	// Start the server
-	log.Fatal(server.Start(ctx, "127.0.0.1:3400", mux))
-}
-
-// Helper function to split text into sections
-func splitIntoSections(text string, numSections int) []string {
-	sections := make([]string, numSections)
-	if text == "" || numSections <= 0 {
-		return sections
-	}
-
-	parts := strings.Split(text, "\n\n")
-
-	for i := 0; i < numSections && i < len(parts); i++ {
-		sections[i] = strings.TrimSpace(parts[i])
-	}
-
-	return sections
-}
-
-// Helper function to parse meal sections
-func parseMealSections(text string) map[string]string {
-	return map[string]string{
-		"breakfast": extractSection(text, "BREAKFAST"),
-		"lunch":     extractSection(text, "LUNCH"),
-		"dinner":    extractSection(text, "DINNER"),
-		"snacks":    extractSection(text, "SNACKS"),
-	}
-}
-
-// Helper function to extract section from text
-func extractSection(text, keyword string) string {
-	if text == "" {
-		return "No information available."
-	}
-
-	textUpper := strings.ToUpper(text)
-	keywordUpper := strings.ToUpper(keyword)
-
-	start := strings.Index(textUpper, keywordUpper)
-	if start == -1 {
-		return "No information available."
-	}
-
-	// Move past the keyword
-	content := text[start+len(keywordUpper):]
-
-	// Stop at the next section header
-	for _, next := range []string{"BREAKFAST", "LUNCH", "DINNER", "SNACKS"} {
-		if next == keywordUpper {
-			continue
-		}
-		if idx := strings.Index(strings.ToUpper(content), next); idx != -1 {
-			content = content[:idx]
-			break
-		}
-	}
-
-	clean := strings.TrimSpace(strings.Trim(content, ":-"))
-	if clean == "" {
-		return "No information available."
-	}
-
-	return clean
-}
-
-// Helper function to check for keywords
-func containsKeywords(text string, keywords []string) bool {
-	if text == "" || len(keywords) == 0 {
-		return false
-	}
-
-	textLower := strings.ToLower(text)
-
-	for _, keyword := range keywords {
-		if keyword == "" {
-			continue
-		}
-		if strings.Contains(textLower, strings.ToLower(keyword)) {
-			return true
-		}
-	}
-
-	return false
+	log.Fatal(server.Start(ctx, addr, mux))
 }
